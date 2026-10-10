@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Escape</title>
+
+<style>
+body {
+  margin: 0;
+  background: #080d0b;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+h1 {
+  color: #7cff7c;
+  margin-top: 20px;
+}
+
+canvas {
+  width: 95%;
+  max-width: 700px;
+  background: #17251b;
+  border: 2px solid #7cff7c;
+  border-radius: 10px;
+  touch-action: none;
+}
+
+button {
+  padding: 12px 20px;
+  margin: 5px;
+  border: none;
+  border-radius: 8px;
+  background: #7cff7c;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#controls {
+  margin: 10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>🧟 ZOMBIE ESCAPE</h1>
+<p>Escape the zombies and survive!</p>
+
+<h3>Score: <span id="score">0</span></h3>
+
+<canvas id="game" width="700" height="450"></canvas>
+
+<div id="controls">
+  <button id="up">⬆️</button><br>
+  <button id="left">⬅️</button>
+  <button id="down">⬇️</button>
+  <button id="right">➡️</button>
+</div>
+
+<button onclick="startGame()">START / RESTART</button>
+<p id="message">Press START to play!</p>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let player, zombies, score, running;
+let keys = {};
+let lastSpawn = 0;
+let lastTime = 0;
+
+function startGame() {
+  player = { x: 350, y: 225, size: 18, speed: 3.5 };
+  zombies = [];
+  score = 0;
+  running = true;
+  lastSpawn = 0;
+  lastTime = 0;
+
+  document.getElementById("message").textContent =
+    "Run away from the zombies!";
+  requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+});
+
+document.addEventListener("keyup", e => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+function bindButton(id, key) {
+  const button = document.getElementById(id);
+
+  button.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    keys[key] = true;
+  });
+
+  function release(e) {
+    e.preventDefault();
+    keys[key] = false;
+  }
+
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointerleave", release);
+  button.addEventListener("pointercancel", release);
+}
+
+bindButton("up", "w");
+bindButton("down", "s");
+bindButton("left", "a");
+bindButton("right", "d");
+
+function spawnZombie() {
+  const side = Math.floor(Math.random() * 4);
+  let x, y;
+
+  if (side === 0) { x = 0; y = Math.random() * 450; }
+  if (side === 1) { x = 700; y = Math.random() * 450; }
+  if (side === 2) { x = Math.random() * 700; y = 0; }
+  if (side === 3) { x = Math.random() * 700; y = 450; }
+
+  zombies.push({
+    x: x,
+    y: y,
+    size: 17,
+    speed: 1 + Math.random() * 0.8
+  });
+}
+
+function gameLoop(time) {
+  if (!running) return;
+
+  let dt = lastTime ? Math.min((time - lastTime) / 16.67, 2) : 1;
+  lastTime = time;
+
+  ctx.fillStyle = "#17251b";
+  ctx.fillRect(0, 0, 700, 450);
+
+  // Player movement
+  if (keys["arrowup"] || keys["w"]) player.y -= player.speed * dt;
+  if (keys["arrowdown"] || keys["s"]) player.y += player.speed * dt;
+  if (keys["arrowleft"] || keys["a"]) player.x -= player.speed * dt;
+  if (keys["arrowright"] || keys["d"]) player.x += player.speed * dt;
+
+  player.x = Math.max(10, Math.min(690, player.x));
+  player.y = Math.max(10, Math.min(440, player.y));
+
+  // Spawn zombies
+  if (time - lastSpawn > 1200) {
+    spawnZombie();
+    lastSpawn = time;
+  }
+
+  // Draw player
+  ctx.fillStyle = "#54cfff";
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Move zombies toward player
+  for (const z of zombies) {
+    const angle = Math.atan2(player.y - z.y, player.x - z.x);
+
+    z.x += Math.cos(angle) * z.speed * dt;
+    z.y += Math.sin(angle) * z.speed * dt;
+
+    ctx.fillStyle = "#a8ef45";
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, z.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Zombie eyes
+    ctx.fillStyle = "#17251b";
+    ctx.fillRect(z.x - 7, z.y - 5, 4, 4);
+    ctx.fillRect(z.x + 3, z.y - 5, 4, 4);
+
+    // Collision
+    const distance = Math.hypot(player.x - z.x, player.y - z.y);
+
+    if (distance < player.size + z.size - 5) {
+      running = false;
+      document.getElementById("message").textContent =
+        "GAME OVER! Your score: " + score;
+      return;
+    }
+  }
+
+  score++;
+  document.getElementById("score").textContent = score;
+
+  requestAnimationFrame(gameLoop);
+}
+</script>
+
+</body>
+</html>
